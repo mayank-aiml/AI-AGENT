@@ -110,20 +110,26 @@ export default function FileUpload() {
   return (
     <div className="mb-6">
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
           isDragOver
-            ? "border-primary bg-primary/5"
-            : "border-slate-300 hover:border-primary hover:bg-primary/5"
+            ? "border-primary bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg"
+            : "border-slate-300 hover:border-primary hover:bg-gradient-to-br hover:from-primary/5 hover:to-primary/10 hover:shadow-md"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleClick}
       >
-        <CloudUpload className="w-8 h-8 text-slate-400 mx-auto mb-3" />
-        <p className="text-slate-600 font-medium mb-1">Drop files here</p>
-        <p className="text-sm text-slate-500">or click to browse</p>
-        <p className="text-xs text-slate-400 mt-2">DOCX, TXT, MD supported</p>
+        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CloudUpload className={`w-6 h-6 ${isDragOver ? 'text-primary' : 'text-slate-500'} transition-colors`} />
+        </div>
+        <p className="text-slate-700 font-medium mb-1">Drop files here</p>
+        <p className="text-sm text-slate-500 mb-2">or click to browse</p>
+        <div className="flex items-center justify-center space-x-2">
+          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">📝 DOCX</span>
+          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">📄 TXT</span>
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">📋 MD</span>
+        </div>
       </div>
 
       <input
