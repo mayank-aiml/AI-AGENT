@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMessageSchema, insertConversationSchema } from "@shared/schema";
 import { generateEmbedding, generateAnswer, generateConversationTitle } from "./services/openai";
+import { performKeywordSearch } from "./services/fallbackSearch";
 import { processDocument } from "./services/documentProcessor";
 import multer from "multer";
 import path from "path";
@@ -132,15 +133,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sources: null,
       });
 
-      // Generate embedding for the query
-      const queryEmbedding = await generateEmbedding(content);
-      
-      // Search for similar document chunks
-      const similarChunks = await storage.searchSimilarChunks(queryEmbedding, 5);
-      
-      // Extract context and source documents
-      const context = similarChunks.map(chunk => chunk.content);
-      const sourceDocuments = Array.from(new Set(similarChunks.map(chunk => chunk.document)));
+      let context: string[] = [];
+      let sourceDocuments: any[] = [];
+
+      try {
+        // Try to generate embedding and search (requires OpenAI)
+        const queryEmbedding = await generateEmbedding(content);
+        const similarChunks = await storage.searchSimilarChunks(queryEmbedding, 5);
+        context = similarChunks.map(chunk => chunk.content);
+        sourceDocuments = Array.from(new Set(similarChunks.map(chunk => chunk.document)));
+      } catch (embeddingError) {
+        // Fallback to keyword search if embeddings fail (e.g., only DeepSeek API available)
+        console.log("Embeddings unavailable, using keyword search fallback");
+        const allDocuments = await storage.getDocuments();
+        const keywordResults = performKeywordSearch(content, allDocuments);
+        
+        context = keywordResults.map(result => result.content);
+        sourceDocuments = keywordResults.map(result => ({
+          id: result.id,
+          originalName: result.originalName,
+          fileType: result.fileType,
+        }));
+      }
       
       // Generate AI response
       const aiResponse = await generateAnswer(content, context);

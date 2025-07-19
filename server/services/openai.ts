@@ -1,12 +1,25 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+// Configure API based on available keys
+const useDeepSeek = process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY;
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "default_key",
 });
+
+// DeepSeek client configuration
+const deepseek = useDeepSeek ? new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: "https://api.deepseek.com",
+}) : null;
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
+    // For now, embeddings require OpenAI as DeepSeek doesn't provide embeddings API
+    if (useDeepSeek) {
+      throw new Error("Document embedding requires OpenAI API key. DeepSeek doesn't provide embedding models.");
+    }
+    
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
@@ -29,8 +42,11 @@ Question: ${query}
 
 Please provide a helpful, accurate answer based on the context provided.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const client = useDeepSeek ? deepseek! : openai;
+    const model = useDeepSeek ? "deepseek-chat" : "gpt-4o";
+
+    const response = await client.chat.completions.create({
+      model,
       messages: [
         {
           role: "system",
@@ -52,8 +68,11 @@ Please provide a helpful, accurate answer based on the context provided.`;
 
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const client = useDeepSeek ? deepseek! : openai;
+    const model = useDeepSeek ? "deepseek-chat" : "gpt-4o";
+
+    const response = await client.chat.completions.create({
+      model,
       messages: [
         {
           role: "system",
