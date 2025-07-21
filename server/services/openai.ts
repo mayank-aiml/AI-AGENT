@@ -1,11 +1,20 @@
 import OpenAI from "openai";
 
 // Configure API based on available keys
-const useDeepSeek = process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY;
+// Priority: OpenRouter > OpenAI > DeepSeek
+const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
+const useDeepSeek = !!process.env.DEEPSEEK_API_KEY && !useOpenRouter;
+const useOpenAI = !!process.env.OPENAI_API_KEY && !useOpenRouter && !useDeepSeek;
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "default_key",
+  apiKey: process.env.OPENAI_API_KEY || "invalid_key",
 });
+
+// OpenRouter client configuration
+const openrouter = useOpenRouter ? new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1",
+}) : null;
 
 // DeepSeek client configuration
 const deepseek = useDeepSeek ? new OpenAI({
@@ -13,14 +22,18 @@ const deepseek = useDeepSeek ? new OpenAI({
   baseURL: "https://api.deepseek.com",
 }) : null;
 
+const apiProvider = useOpenRouter ? 'OpenRouter' : useDeepSeek ? 'DeepSeek' : 'OpenAI';
+console.log(`Using API: ${apiProvider}`);
+
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    // For now, embeddings require OpenAI as DeepSeek doesn't provide embeddings API
+    // OpenRouter and OpenAI support embeddings, DeepSeek doesn't
     if (useDeepSeek) {
-      throw new Error("Document embedding requires OpenAI API key. DeepSeek doesn't provide embedding models.");
+      throw new Error("Document embedding requires OpenAI or OpenRouter API key. DeepSeek doesn't provide embedding models.");
     }
     
-    const response = await openai.embeddings.create({
+    const client = useOpenRouter ? openrouter! : openai;
+    const response = await client.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
     });
@@ -42,8 +55,8 @@ Question: ${query}
 
 Please provide a helpful, accurate answer based on the context provided.`;
 
-    const client = useDeepSeek ? deepseek! : openai;
-    const model = useDeepSeek ? "deepseek-chat" : "gpt-4o";
+    const client = useOpenRouter ? openrouter! : useDeepSeek ? deepseek! : openai;
+    const model = useOpenRouter ? "openai/gpt-4o" : useDeepSeek ? "deepseek-chat" : "gpt-4o";
 
     const response = await client.chat.completions.create({
       model,
@@ -58,6 +71,7 @@ Please provide a helpful, accurate answer based on the context provided.`;
         }
       ],
       temperature: 0.3,
+      max_tokens: 1000, // Limit tokens to reduce cost
     });
 
     return response.choices[0].message.content || "I couldn't generate a response. Please try again.";
@@ -68,8 +82,8 @@ Please provide a helpful, accurate answer based on the context provided.`;
 
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    const client = useDeepSeek ? deepseek! : openai;
-    const model = useDeepSeek ? "deepseek-chat" : "gpt-4o";
+    const client = useOpenRouter ? openrouter! : useDeepSeek ? deepseek! : openai;
+    const model = useOpenRouter ? "openai/gpt-4o" : useDeepSeek ? "deepseek-chat" : "gpt-4o";
 
     const response = await client.chat.completions.create({
       model,

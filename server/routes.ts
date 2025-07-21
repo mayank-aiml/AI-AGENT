@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (embeddingError) {
         // Fallback to keyword search if embeddings fail (e.g., only DeepSeek API available)
         console.log("Embeddings unavailable, using keyword search fallback");
-        const allDocuments = await storage.getDocuments();
+        const allDocuments = await storage.getAllDocuments();
         const keywordResults = performKeywordSearch(content, allDocuments);
         
         context = keywordResults.map(result => result.content);
